@@ -1,1 +1,89 @@
-
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://ulpgc.es/process-register-message.schema.json",
+  "title": "Process register message",
+  "description": "A specification for a process to catalog",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The message type",
+      "enum": [ "process-register" ]
+    },
+    "register": {
+      "description": "Data about the process",
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/process/deployedProcess" },
+        { "$ref": "#/process/toBeDeployedProcess" }
+      ]
+    }
+  },
+  "required": [ "type", "register" ],
+  "additionalProperties": false,
+  "process": {
+    "deployedProcess": {
+      "properties": {
+        "name": {
+          "description": "The unique name for the process",
+          "type": "string"
+        },
+        "description": {
+          "description": "Text about the process functionality",
+          "type": "string"
+        },
+        "input": {
+          "description": "Text about the required input data",
+          "type": "string"
+        },
+        "output": {
+          "description": "Text about the results",
+          "type": "string"
+        },
+        "cloudProvider": {
+          "description": "Cloud provider where the process is deployed",
+          "enum": [ "aws", "azure", "os" ]
+        }
+      },
+      "required": [ "name", "description", "input", "output", "cloudProvider" ],
+      "additionalProperties": false
+    },
+    "toBeDeployedProcess": {
+      "properties": {
+        "name": {
+          "description": "The unique name for the process",
+          "type": "string"
+        },
+        "description": {
+          "description": "Text about the process functionality",
+          "type": "string"
+        },
+        "input": {
+          "description": "Text about the required input data",
+          "type": "string"
+        },
+        "output": {
+          "description": "Text about the results",
+          "type": "string"
+        },
+        "code": {
+          "description": "S3 object with the process source code",
+          "type": "object",
+          "properties": {
+            "S3Bucket": {
+              "description": "Bucket name",
+              "type": "string"
+            },
+            "S3Key": {
+              "description": "Object name (zip file)",
+              "type": "string"
+            }
+          },
+          "required": [ "S3Bucket", "S3Key" ],
+          "additionalProperties": false
+        }
+      },
+      "required": [ "name", "description", "input", "output", "code" ],
+      "additionalProperties": false
+    }
+  }
+}

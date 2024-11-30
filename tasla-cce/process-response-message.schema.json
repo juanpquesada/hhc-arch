@@ -1,1 +1,35 @@
-
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://ulpgc.es/process-response-message.schema.json",
+  "title": "Process response message",
+  "description": "Message with the result of an invoked process",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The message type",
+      "enum": [ "process-response" ]
+    },
+    "response": {
+      "description": "Task name, process identifier and result",
+      "type": "object",
+      "properties": {
+        "taskName": {
+          "description": "Name of the task invoking the process",
+          "type": "string"
+        },
+        "procId": {
+          "description": "The identifier of the task process",
+          "type": "integer"
+        },
+        "result": {
+          "description": "The result obtained by the process",
+          "type": "object"
+        }
+      },
+      "required": [ "taskName", "procId", "result" ],
+      "additionalProperties": false
+    }
+  },
+  "required": [ "type", "response" ],
+  "additionalProperties": false
+}

@@ -1,1 +1,182 @@
-
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://ulpgc.es/task-message.schema.json",
+  "title": "Task message",
+  "description": "A specification for a complex task",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The message type",
+      "enum": [ "task" ]
+    },
+    "task": {
+      "description": "The elements that describe the task",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The unique name for the task",
+          "type": "string"
+        },
+        "procs": {
+          "description": "A list of processes for the task",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              { "$ref": "#/process/simpleProcess" },
+              { "$ref": "#/process/ifProcess" },
+              { "$ref": "#/process/forProcess" }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "outProcs": {
+          "description": "Processes (ids) that return results",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notificationEmail": {
+          "description": "Email address for notifications",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name", "procs", "outProcs", "notificationEmail"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [ "type", "task" ],
+  "additionalProperties": false,
+  "process": {
+    "simpleProcess": {
+      "properties": {
+        "id": {
+          "description": "Unique identifier for the task process",
+          "type": "integer"
+        },
+        "name": {
+          "description": "The name of the service to be invoked",
+          "type": "string"
+        },
+        "params": {
+          "description": "Input data for the process",
+          "type": "object"
+        },
+        "dependsOn": {
+          "description": "Processes (ids) to be completed earlier",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [ "id", "name", "params", "dependsOn" ],
+      "additionalProperties": false
+    },
+    "ifProcess": {
+      "properties": {
+        "id": {
+          "description": "Unique identifier for the task process",
+          "type": "integer"
+        },
+        "dependsOn": {
+          "description": "Processes (ids) to be completed earlier",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "uniqueItems": true
+        },
+        "if": {
+          "description": "Condition to be evaluated",
+          "type": "string"
+        },
+        "then": {
+          "description": "Processes to be executed if condition true",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              { "$ref": "#/process/simpleProcess" },
+              { "$ref": "#/process/ifProcess" },
+              { "$ref": "#/process/forProcess" }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "else": {
+          "description": "Processes to be executed if condition false",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              { "$ref": "#/process/simpleProcess" },
+              { "$ref": "#/process/ifProcess" },
+              { "$ref": "#/process/forProcess" }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [ "id", "dependsOn", "if", "then" ],
+      "additionalProperties": false
+    },
+    "forProcess": {
+      "properties": {
+        "id": {
+          "description": "Unique identifier for the task process",
+          "type": "integer"
+        },
+        "dependsOn": {
+          "description": "Processes (ids) to be completed earlier",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "uniqueItems": true
+        },        
+        "for": {
+          "description": "Initial and final values for the counter",
+          "type": "object",
+          "properties": {
+            "initialValue": {
+              "description": "The initial value for the counter",
+              "type": "integer"
+            },
+            "finalValue": {
+              "description": "The final value for the counter",
+              "type": "integer"
+            }
+          },
+          "required": [ "initialValue", "finalValue" ],
+          "additionalProperties": false
+        },
+        "do": {
+          "description": "Processes to be executed in each iteration",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              { "$ref": "#/process/simpleProcess" },
+              { "$ref": "#/process/ifProcess" },
+              { "$ref": "#/process/forProcess" }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [ "id", "dependsOn", "for", "do" ],
+      "additionalProperties": false
+    }
+  }
+}

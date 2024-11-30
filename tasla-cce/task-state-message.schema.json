@@ -1,1 +1,27 @@
-
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://ulpgc.es/task-state-message.schema.json",
+  "title": "Task state message",
+  "description": "A request of information about the state of a task",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The message type",
+      "enum": [ "task-state" ]
+    },
+    "taskData": {
+      "description": "Data about the task",
+      "type": "object",
+      "properties": {
+        "taskName": {
+          "description": "The name of the task",
+          "type": "string"
+        }
+      },
+      "required": [ "taskName" ],
+      "additionalProperties": false
+    }
+  },
+  "required": [ "type", "taskData" ],
+  "additionalProperties": false
+}

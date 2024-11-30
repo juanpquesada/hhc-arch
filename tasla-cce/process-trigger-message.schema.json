@@ -1,1 +1,35 @@
-
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://ulpgc.es/process-trigger-message.schema.json",
+  "title": "Process trigger message",
+  "description": "A specification for a process invocation",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The message type",
+      "enum": [ "process-trigger" ]
+    },
+    "trigger": {
+      "description": "Identifying values, and input data",
+      "type": "object",
+      "properties": {
+        "taskName": {
+          "description": "Name of the task invoking the process",
+          "type": "string"
+        },
+        "procId": {
+          "description": "Identifier of the task process",
+          "type": "integer"
+        },
+        "params": {
+          "description": "Input data required by the process",
+          "type": "object"
+        }
+      },
+      "required": [ "taskName", "procId", "params" ],
+      "additionalProperties": false
+    }
+  },
+  "required": [ "type", "trigger" ],
+  "additionalProperties": false
+}
