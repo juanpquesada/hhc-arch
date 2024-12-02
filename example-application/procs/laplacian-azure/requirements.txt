@@ -1,1 +1,3 @@
-
+azure-functions
+boto3
+requests

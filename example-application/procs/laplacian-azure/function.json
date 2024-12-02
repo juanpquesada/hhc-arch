@@ -1,1 +1,12 @@
-
+{
+  "scriptFile": "function_app.py",
+  "bindings": [
+    {
+      "name": "msg",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "laplacian-queue-azure",
+      "connection": ""
+    }
+  ]
+}
