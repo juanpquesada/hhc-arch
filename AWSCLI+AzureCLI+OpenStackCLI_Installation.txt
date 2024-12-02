@@ -1,0 +1,30 @@
+---------- AWS CLI installation on Ubuntu 22.04 ----------
+   Source: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+   
+   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+   unzip awscliv2.zip
+   sudo ./aws/install
+
+---------- Azure CLI installation on Ubuntu 22.04 ----------
+   Source: https://learn.microsoft.com/es-es/cli/azure/install-azure-cli-linux?pivots=apt
+   
+   curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+---------- Azure Functions Core Tools ----------
+   Source: https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=linux%2Cisolated-process%2Cnode-v4%2Cpython-v2%2Chttp-trigger%2Ccontainer-apps&pivots=programming-language-python#install-the-azure-functions-core-tools
+   
+   curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+   sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+   sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-$(lsb_release -cs 2>/dev/null)-prod $(lsb_release -cs 2>/dev/null) main" > /etc/apt/sources.list.d/dotnetdev.list'
+   sudo apt update
+   sudo apt install azure-functions-core-tools-4
+
+---------- OpenStack CLI installation on Ubuntu 22.04 (with Zaqar functionality) ----------
+   Source:
+
+   sudo apt install python3-venv python3-pip python3-dev
+   python3 -m venv venv-openstack
+   source venv-openstack/bin/activate 
+   pip install git+https://git.openstack.org/openstack/python-openstackclient.git
+   pip install git+https://git.openstack.org/openstack/python-zaqarclient.git
+   deactivate
