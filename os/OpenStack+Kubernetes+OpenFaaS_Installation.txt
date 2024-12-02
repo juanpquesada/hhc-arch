@@ -1,0 +1,223 @@
+---------- STEP-BY-STEP ----------
+
+---------- OpenStack ----------
+
+0. Preparation of the machine to use.
+   - Intel i7, 8 CPUs
+   - 16 GB RAM
+   - 64 GB SSD
+   - Static IP configuration: IP 192.168.1.16, Mask 255.255.255.0, GW 192.168.1.1, DNS 8.8.8.8,8.8.4.4
+   - Ubuntu 64-bit (22.04 Desktop)
+
+   # After the Ubuntu installation, update respositories and system.
+   sudo apt update
+   sudo apt upgrade
+
+   # Install the service in charge of the /etc/resolv.conf file (DNS nameservers).
+   sudo apt install resolvconf
+   sudo systemctl status resolvconf.service
+   sudo nano /etc/resolvconf/resolv.conf.d/head
+	nameserver 8.8.8.8
+	nameserver 8.8.4.4
+   sudo resolvconf --enable-updates
+   sudo resolvconf -u
+   sudo systemctl restart resolvconf.service
+   sudo systemctl restart systemd-resolved.service
+   resolvectl status
+
+1. DevStack installation.
+   # Install git, download DevStack and install it.
+   sudo apt install git
+   git clone https://opendev.org/openstack/devstack/
+   cd devstack
+   nano local.conf
+	[[local|localrc]]
+	# Node IP
+	HOST_IP=192.168.1.16
+
+	# Passwords for Horizon/Keystone, MySQL, RabbitMQ and
+	# Keystone authentication of services (Nova, Glance, etc.), respectively
+	ADMIN_PASSWORD=<ADMIN_PASSWORD>
+	DATABASE_PASSWORD=$ADMIN_PASSWORD
+	RABBIT_PASSWORD=$ADMIN_PASSWORD
+	SERVICE_PASSWORD=$ADMIN_PASSWORD
+
+	# Neutron options
+	FLOATING_RANGE=192.168.1.0/24
+	Q_FLOATING_ALLOCATION_POOL=start=192.168.1.17,end=192.168.1.25
+	PUBLIC_INTERFACE=wlo1
+	PUBLIC_NETWORK_GATEWAY=192.168.1.1
+
+	# Plugins
+	enable_plugin zaqar https://github.com/openstack/zaqar
+   ./stack.sh
+  
+   # Allow IP forwarding
+   sudo nano /etc/sysctl.conf
+   	net.ipv4.ip_forward=1
+   sudo sysctl -p
+   sudo sysctl --system
+   sudo iptables -t nat -A POSTROUTING -o br-ex -j MASQUERADE
+
+2. DevStack installation checking.
+   # Check the access to OpenStack services.
+   # First, with a browser, access to Horizon (http://<HOST_IP>) and sign in with user 'admin' and password <ADMIN_PASSWORD>
+   # Second, download the OpenStack RC file (through the menu located at the top right of the screen).
+   # Third, copy (or move) the file to devstack folder.
+   source admin-openrc.sh
+   openstack flavor list
+   
+   # Check Zaqar service.
+   openstack messaging queue create in-queue
+   openstack messaging message post --client-id <CLIENT_UUID> in-queue '{"body": {"text": "Test message"}, "ttl": 300}'
+   openstack messaging queue stats in-queue
+
+
+
+
+---------- Kubernetes ----------
+
+0. Deployment of the required infrastructure in OpenStack.
+   # Access to Horizon (http://<HOST_IP>) and sign in with user 'admin' and password <ADMIN_PASSWORD>
+
+   # Through the Identity section, create a blank Openstack project with name <PROJECT_NAME>.
+
+   # Also through the Identity section, create the user <USER> with password <PASSWORD>, <PROJECT_NAME> as primary project, and 'admin' as role.
+
+   # Sign out and sign in with user <USER>.
+
+   # Through Proyect - Network -Networks, edit public network and check Shared.
+   # Then, click on public network, then on Subnets and edit public-subnet.
+   # Change the value of the Gateway IP to 192.168.1.16 and in the Subnet Details section add 8.8.8.8 and 8.8.4.4 as DNS name servers.
+
+   # Download an Ubuntu Server image (from https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img) and create an image in Horizon
+   # (Project - Compute - Images).
+	- jammny-server-cloudimag-amd64 (Image Name), QCOW2 -QEMU Emulator (Format), Public (Share Image)
+
+   # Launch an Ubuntu instance.
+   # First, download the new OpenStack RC file (through the menu located at the top right of the screen) and copy (or move) it to devstack folder.
+   source <PROJECT_NAME>-openrc.sh
+   openstack flavor create --ram 6144 --disk 30 --vcpus 4 m2.medium
+   openstack flavor list
+	- Details: OpenFaaS (Instance Name)
+	- Source: jammny-server-cloudimag-amd64
+	- Flavor: m2.medium
+	- Networks: public
+	- Key Pair: openfaas_keypair (Key Pair Name), SSH Key (Key Type)
+   # Copy and paste the private key to a file (for instance, named openfaas_keypair).
+
+   # Once the instance is running, modify the default security group for accessing the instance from outside (SSH) and for pings (All ICMP).
+
+1. MicroK8s installation.
+   # From other computer (recommended), access to the instance created in OpenStack through SSH and using the private key.
+
+   # Update repositories and system.
+   sudo apt update
+   sudo apt upgrade
+
+   # Install MicroK8s and join the group microk8s.
+   sudo snap install microk8s --classic
+   sudo usermod -a -G microk8s $USER
+   mkdir -p ~/.kube
+   chmod 0700 ~/.kube
+   newgrp microk8s
+
+   # Check the status and access Kubernetes.
+   microk8s status --wait-ready
+   microk8s kubectl get nodes
+
+2. First Kubernetes service deployment.
+   # Deploy a Kubernetes service of example.
+   microk8s kubectl apply -f https://k8s.io/examples/application/deployment.yaml # Got from https://kubernetes.io/docs/tasks/run-application/run-stateless-application-deployment/)
+   microk8s kubectl expose deployment nginx-deployment --type NodePort
+   microk8s kubectl get deployment,pod,service
+   microk8s kubectl port-forward service/nginx-deployment --address 0.0.0.0 8080:80 &
+   # Check the result in a browser (http://<FLOATING_IP>:8080), but first add a rule in default security group to allow ingress requests to port 8080.
+   # After that, use the two next commands to delete the service, the deployment and the port forwarding.
+   microk8s kubectl delete service nginx-deployment
+   microk8s kubectl delete deployment nginx-deployment
+   ps -ef | grep port-forward
+   kill -9 <PID>
+   microk8s kubectl get deployment,pod,service
+
+3. Commands to take into account.
+   # Take these commands into account.
+   microk8s stop
+   microk8s start
+   sudo snap remove microk8s
+
+
+
+
+---------- OpenFaaS ----------
+
+1. OpenFaaS installation.
+   # If not yet, from other computer (recommended) access to the instance created in OpenStack through SSH and using the private key.
+
+   # If not yet, change the current group to microk8s.
+   newgrp microk8s
+
+   # Enable microk8s addons, previously configuring git.
+   git config --global --add safe.directory /snap/microk8s/current/addons/community/.git
+   microk8s enable community
+   microk8s enable openfaas
+   
+2. OpenFaaS installation checking.
+   # Check OpenFaaS.
+   microk8s kubectl -n openfaas get deployments -l "release=openfaas, app=openfaas"
+   microk8s kubectl rollout status -n openfaas deploy/gateway
+   microk8s kubectl port-forward -n openfaas svc/gateway --address 0.0.0.0 8080:8080 &
+
+3. faas-cli installation.
+   # Get and install the faas-cli.
+   curl -SLsf https://cli.openfaas.com | sudo sh
+
+4. First function creation (https://docs.openfaas.com/tutorials/first-python-function/).
+   # Create a directory.
+   mkdir -p ~/functions && \
+     cd ~/functions
+
+   # Create a Python function from a default template.
+   faas-cli new --lang python3 hello-python
+
+   # Deploy the function (it's necessary a Docker Hub user).
+   # First, install docker via snap.
+   sudo snap install docker
+   sudo docker login
+   # Before the next command, modify the image option (<DOCKERHUB_USER>/hello-python:latest) specified in the file hello-python.yml.
+   sudo faas-cli build -f ./hello-python.yml --build-arg PYTHON_VERSION=3.10
+   sudo faas-cli push -f ./hello-python.yml
+   faas-cli deploy -f ./hello-python.yml
+   PASSWORD=$(microk8s kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo)
+   echo -n $PASSWORD | faas-cli login --username admin --password-stdin
+   faas-cli list
+
+   # Invoke the function
+   echo "Hello!" | faas-cli invoke hello-python # Also: curl http://<FLOATING_IP>:8080/function/hello-python -d "It's JP here."
+                                                # Or in an asynchronous way: curl http://<FLOATING_IP>:8080/async-function/hello-python -d "It's JP here."
+
+5. Zaqar (OpenStack Messaging Service) and OpenFaaS integration.
+   # If not yet, go to the computer where DevStack is installed.
+
+   # Through a terminal, make all the subscriptions are confirmed automatically when they are created, and restart the Zaqar service.
+   nano /opt/stack/zaqar/zaqar/storage/mongodb/subscriptions.py
+	confirmed = True # Method create
+   sudo systemctl restart devstack@zaqar-wsgi.service
+
+   # Create a subscription for in-queue queue.
+   # First, with a browser, access to Horizon (http://<HOST_IP>) and sign in with user <USER>.
+   # Second, download the file OpenStack RC (through the menu located at the top right of the screen).
+   # Third, copy (or move) the file to devstack folder.
+   source <PROJECT_NAME>-openrc.sh
+   openstack messaging subscription create in-queue http://<FLOATING_IP>:8080/async-function/hello-python 31536000
+   openstack messaging subscription list in-queue
+
+   # Send a message to the in-queue queue.
+   openstack messaging message post --client-id <CLIENT_UUID> in-queue '{"body": {"text": "OpenFaaS test"}, "ttl": 300}'
+   openstack messaging queue stats in-queue
+
+   # Delete the subscription to the in-queue queue.
+   openstack messaging subscription delete in-queue <SUBSCRIPTION_ID>
+
+   # Delete the queue.
+   openstack messaging queue delete in-queue
