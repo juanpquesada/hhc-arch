@@ -1,0 +1,176 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Template for deploying AWS resources for HHC-ARCH",
+
+  "Resources" : {
+    "SQSOutQueue" : {
+      "Type" : "AWS::SQS::Queue",
+      "Properties" : {
+        "QueueName" : "out-queue",
+		"VisibilityTimeout" : 300
+      }
+    },
+
+    "SQSPCMQueue" : {
+      "Type" : "AWS::SQS::Queue",
+      "Properties" : {
+        "QueueName" : "pcm-queue",
+        "VisibilityTimeout" : 300
+      }
+    },
+
+    "LambdaExecutionRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [
+            {
+              "Effect" : "Allow",
+              "Principal" : {
+                "Service" : [ "lambda.amazonaws.com" ]
+              },
+              "Action" : [ "sts:AssumeRole" ]
+            }
+          ]
+        },
+        "Policies" : [
+          {
+            "PolicyName" : "root",
+            "PolicyDocument" : {
+              "Version" : "2012-10-17",
+              "Statement" : [
+                {
+                  "Effect" : "Allow",
+                  "Action" : "*",
+                  "Resource" : "*"
+                }
+              ]
+            }
+          }
+        ],
+        "RoleName" : "LambdaExecutionRole"
+      }
+    },
+
+    "LambdaFunctionDispatcher" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "S3Bucket" : "lambda-functions-hhcarch",
+          "S3Key" : "dispatcher.zip"
+        },
+        "FunctionName" : "dispatcher",
+        "Handler" : "lambda_function.lambda_handler",
+        "Role" : { "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ] },
+        "Runtime" : "ruby3.2",
+        "Timeout" : 300
+      }
+    },
+
+    "LambdaFunctionPCM" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code" : {
+          "S3Bucket" : "lambda-functions-hhcarch",
+          "S3Key" : "pcm.zip"
+        },
+        "FunctionName" : "pcm",
+        "Handler" : "lambda_function.lambda_handler",
+        "Role" : { "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ] },
+        "Runtime" : "ruby3.2",
+        "Timeout" : 300
+      }
+    },
+
+    "LambdaFunctionDispatcherEventSourceMapping" : {
+      "Type" : "AWS::Lambda::EventSourceMapping",
+      "Properties" : {
+        "BatchSize" : 10,
+        "Enabled" : true,
+        "EventSourceArn" : "arn:aws:sqs:us-east-1:<ACCOUNT-ID>:in-queue",
+        "FunctionName" : { "Fn::GetAtt" : [ "LambdaFunctionDispatcher", "Arn" ] }
+      }
+    },
+
+    "LambdaFunctionPCMEventSourceMapping" : {
+      "Type" : "AWS::Lambda::EventSourceMapping",
+      "Properties" : {
+        "BatchSize" : 10,
+        "Enabled" : true,
+        "EventSourceArn" : { "Fn::GetAtt" : [ "SQSPCMQueue", "Arn" ] },
+        "FunctionName" : { "Fn::GetAtt" : [ "LambdaFunctionPCM", "Arn" ] }
+      }
+    },
+
+    "DynamoDBTableTasks" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "taskName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "taskName",
+            "KeyType" : "HASH"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : 5,
+          "WriteCapacityUnits" : 5
+        },
+        "TableName" : "tasks"
+      }
+    },
+
+    "DynamoDBTableProcs" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "taskName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "taskName",
+            "KeyType" : "HASH"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : 5,
+          "WriteCapacityUnits" : 5
+        },
+        "TableName" : "procs"
+      }
+    },
+
+    "DynamoDBTableCatalog" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "procName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "procName",
+            "KeyType" : "HASH"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : 5,
+          "WriteCapacityUnits" : 5
+        },
+        "TableName" : "catalog"
+      }
+    }
+  }
+}
